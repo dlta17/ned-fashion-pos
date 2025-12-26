@@ -24,7 +24,6 @@ const CLOUD_URL = "https://raw.githubusercontent.com/dlta17/ned-fashion-pos/main
 
 const MainLayout: React.FC = () => {
   const { license, clearLocalWarning } = useStore();
-
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
       <Header />
@@ -36,7 +35,6 @@ const MainLayout: React.FC = () => {
               <button onClick={clearLocalWarning} className="bg-black/20 hover:bg-black/40 px-3 py-1 rounded-lg text-xs">إخفاء</button>
           </div>
       )}
-
       <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <ErrorBoundary>
             <Suspense fallback={<LoadingSpinner />}>
@@ -68,7 +66,6 @@ const AppRoutes: React.FC = () => {
     useEffect(() => {
         const syncSaaS = async () => {
             try {
-                // إضافة timestamp لمنع الـ Cache
                 const response = await fetch(`${CLOUD_URL}?t=${new Date().getTime()}`);
                 const data = await response.json();
                 const decrypted = JSON.parse(decodeURIComponent(escape(atob(data.cloud_payload))));
@@ -79,42 +76,39 @@ const AppRoutes: React.FC = () => {
                     if (cloudStore.status === 'BLOCKED') {
                         setIsBlocked(true);
                     } else if (cloudStore.status === 'ACTIVE') {
-                        // --- التعديل الجوهري هنا ---
-                        // 1. تحديث الـ LocalStorage يدوياً لضمان استقرار الحالة
-                        const forcedLicense = {
-                            ...license,
+                        // --- حقن الحالة مباشرة في الذاكرة ---
+                        const activeData = {
                             isActivated: true,
                             remoteStatus: 'ACTIVE',
-                            trialDaysLeft: 999,
-                            hardwareId: myHwid
+                            hardwareId: myHwid,
+                            expiryDate: '2030-01-01'
                         };
-                        localStorage.setItem('ned_pos_license', JSON.stringify(forcedLicense));
-
-                        // 2. تفعيل النسخة برمجياً
-                        if (typeof activateLicense === 'function') {
-                            activateLicense("SaaS_FORCE_ACTIVE"); 
-                        }
-                        console.log("✅ SaaS Status: ACTIVE");
+                        localStorage.setItem('ned_pos_license', JSON.stringify(activeData));
+                        
+                        // تحديث الحالة في الواجهة
+                        if (activateLicense) activateLicense("FORCE_SaaS_ACTIVE");
+                        
+                        setIsBlocked(false);
                     }
                 }
             } catch (error) {
-                console.error("⚠️ SaaS Connection Error");
+                console.error("SaaS Connection Failed");
             } finally {
                 setCloudLoading(false);
             }
         };
         syncSaaS();
-    }, [activateLicense]);
+    }, []);
 
     if (authLoading || cloudLoading) return <LoadingSpinner />;
 
-    if (isBlocked || license.remoteStatus === 'BLOCKED') {
+    // لو السحاب باعت BLOCKED اظهر شاشة الحظر فوراً
+    if (isBlocked) {
         return (
-            <div className="h-screen bg-slate-950 flex items-center justify-center p-6 text-center">
-                <div className="bg-white p-12 rounded-[3rem] shadow-2xl max-w-xl border-t-[12px] border-red-600">
-                    <h1 className="text-4xl font-black text-slate-800 mb-6">النظام متوقف!</h1>
-                    <p className="text-slate-500 font-bold text-lg mb-4">تم تعليق الخدمة من السيرفر المركزي.</p>
-                    <p className="text-slate-400 font-bold">يرجى مراجعة المطور نضال سلامة.</p>
+            <div className="h-screen bg-black flex items-center justify-center p-6 text-center text-white">
+                <div className="bg-red-900/20 p-12 rounded-3xl border border-red-500 shadow-2xl">
+                    <h1 className="text-5xl font-black mb-6">النظام محظور!</h1>
+                    <p className="text-xl mb-8">تم إيقاف الخدمة عن هذا الجهاز من قبل المطور نضال سلامة.</p>
                 </div>
             </div>
         );
