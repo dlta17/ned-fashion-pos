@@ -9,38 +9,45 @@
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
     <style>
-        body { font-family: 'Cairo', sans-serif; background-color: #030303; color: #f8fafc; }
-        .glass { background: rgba(15, 15, 15, 0.7); border: 1px solid rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); }
-        .neon-blue { box-shadow: 0 0 20px rgba(37, 99, 235, 0.15); border: 1px solid rgba(37, 99, 235, 0.3); }
-        .neon-green { box-shadow: 0 0 20px rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.3); }
-        input, select, textarea { background: #111 !important; border: 1px solid #333 !important; color: white !important; }
-        .custom-scroll::-webkit-scrollbar { width: 5px; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+        body { font-family: 'Cairo', sans-serif; background-color: #020202; color: #f8fafc; }
+        .glass { background: rgba(10, 10, 10, 0.8); border: 1px solid rgba(255, 255, 255, 0.03); backdrop-filter: blur(15px); }
+        .neon-blue { box-shadow: 0 0 30px rgba(37, 99, 235, 0.1); border: 1px solid rgba(37, 99, 235, 0.2); }
+        input { background: #0a0a0a !important; border: 1px solid #222 !important; color: white !important; }
     </style>
 </head>
-<body class="p-4 md:p-10">
+<body>
     <div id="master-root"></div>
 
     <script type="text/babel">
         const { useState, useEffect } = React;
-        
         const MASTER_DB = 'ned_cloud_master_v3';
+        const AUTH_USER = "nedal"; 
+        const AUTH_PASS = "0101519757";
 
         const MasterApp = () => {
+            const [isAuthorized, setIsAuthorized] = useState(false);
             const [stores, setStores] = useState({});
-            const [updateConfig, setUpdateConfig] = useState({ version: '1.0.1', url: '', description: '', globalWarning: '' });
+            const [updateConfig, setUpdateConfig] = useState({ version: '1.0.1', url: '', globalWarning: '' });
             const [activeTab, setActiveTab] = useState('stores');
             const [isAddOpen, setIsAddOpen] = useState(false);
             const [newStore, setNewStore] = useState({ hwid: '', name: '' });
 
             useEffect(() => {
-                const data = localStorage.getItem(MASTER_DB);
-                if (data) {
-                    const parsed = JSON.parse(data);
-                    setStores(parsed.stores || {});
-                    setUpdateConfig(parsed.update || updateConfig);
+                const user = prompt("NED AI LABS - اسم المستخدم:");
+                const pass = prompt("NED AI LABS - كلمة السر:");
+                
+                if (user === AUTH_USER && pass === AUTH_PASS) {
+                    setIsAuthorized(true);
+                    const data = localStorage.getItem(MASTER_DB);
+                    if (data) {
+                        const parsed = JSON.parse(data);
+                        setStores(parsed.stores || {});
+                        setUpdateConfig(parsed.update || updateConfig);
+                    }
+                } else {
+                    alert("بيانات الدخول خاطئة!");
+                    window.location.href = "https://google.com";
                 }
             }, []);
 
@@ -52,89 +59,65 @@
             };
 
             const handleExport = () => {
-                const blob = new Blob([JSON.stringify({ stores, update: updateConfig }, null, 2)], { type: 'application/json' });
+                const dataString = JSON.stringify({ stores, update: updateConfig });
+                // تشفير البيانات (Base64) لحماية نظام الـ SaaS
+                const encryptedData = btoa(unescape(encodeURIComponent(dataString)));
+                const blob = new Blob([JSON.stringify({ cloud_payload: encryptedData })], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = 'ned_cloud_server.json';
                 a.click();
-                alert("تم التصدير بنجاح! ارفع الملف الآن لـ GitHub.");
+                alert("تم التشفير والتصدير بنجاح!");
             };
 
-            const toggleStatus = (hwid) => {
-                const updated = { ...stores };
-                updated[hwid].status = updated[hwid].status === 'ACTIVE' ? 'BLOCKED' : 'ACTIVE';
-                save(updated);
-            };
-
-            const addStore = (e) => {
-                e.preventDefault();
-                if(!newStore.hwid) return;
-                const updated = { ...stores };
-                updated[newStore.hwid.toUpperCase()] = { name: newStore.name, status: 'ACTIVE', warning: '' };
-                save(updated);
-                setIsAddOpen(false);
-                setNewStore({hwid:'', name:''});
-            };
+            if (!isAuthorized) return <div className="bg-black h-screen"></div>;
 
             return (
-                <div className="max-w-5xl mx-auto space-y-8">
-                    <header className="flex flex-col md:flex-row justify-between items-center gap-6 pb-8 border-b border-white/5">
+                <div className="max-w-4xl mx-auto py-12 px-4 space-y-8">
+                    <header className="flex justify-between items-end border-b border-white/5 pb-8">
                         <div>
-                            <h1 className="text-4xl font-black text-white tracking-tighter">NED MASTER <span className="text-blue-500">CLOUD</span></h1>
-                            <p className="text-slate-500 font-bold mt-1">نظام الإدارة المركزية (NED AI LABS)</p>
+                            <h1 className="text-3xl font-black text-white">NED <span className="text-blue-500 font-black">SaaS</span> MASTER</h1>
+                            <p className="text-slate-500 text-xs font-bold mt-2">نظام إدارة التراخيص المشفرة - نضال سلامة</p>
                         </div>
-                        <div className="flex gap-3">
-                            <button onClick={handleExport} className="bg-green-600 px-8 py-3 rounded-2xl font-black text-xs hover:bg-green-500 shadow-lg shadow-green-900/20">تصدير ملف السحاب</button>
-                            <button onClick={() => setIsAddOpen(true)} className="bg-blue-600 px-8 py-3 rounded-2xl font-black text-xs hover:bg-blue-500 shadow-lg shadow-blue-900/20">+ تسجيل متجر جديد</button>
+                        <div className="flex gap-2">
+                             <button onClick={() => setIsAddOpen(true)} className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-xl text-xs font-black shadow-lg shadow-blue-900/20">+ عميل جديد</button>
+                             <button onClick={handleExport} className="bg-green-600 hover:bg-green-500 text-white px-6 py-3 rounded-xl text-xs font-black shadow-lg shadow-green-900/20">تصدير السحاب</button>
                         </div>
                     </header>
 
-                    <div className="flex gap-2 p-1 bg-white/5 rounded-2xl w-fit">
-                        <button onClick={() => setActiveTab('stores')} className={`px-6 py-2 rounded-xl text-xs font-black transition-all ${activeTab === 'stores' ? 'bg-blue-600 text-white' : 'text-slate-500'}`}>المتاجر المشتركة</button>
-                        <button onClick={() => setActiveTab('updates')} className={`px-6 py-2 rounded-xl text-xs font-black transition-all ${activeTab === 'updates' ? 'bg-blue-600 text-white' : 'text-slate-500'}`}>تحديثات البرنامج</button>
+                    <div className="flex gap-4 border-b border-white/5 pb-1">
+                        <button onClick={()=>setActiveTab('stores')} className={`pb-4 text-xs font-black transition-all ${activeTab === 'stores' ? 'text-blue-500 border-b-2 border-blue-500' : 'text-slate-500'}`}>إدارة المشتركين</button>
+                        <button onClick={()=>setActiveTab('updates')} className={`pb-4 text-xs font-black transition-all ${activeTab === 'updates' ? 'text-blue-500 border-b-2 border-blue-500' : 'text-slate-500'}`}>تحديثات السيستم</button>
                     </div>
 
                     {activeTab === 'stores' ? (
-                        <div className="glass rounded-[2.5rem] overflow-hidden neon-blue">
+                        <div className="glass rounded-3xl overflow-hidden neon-blue">
                             <table className="w-full text-right">
-                                <thead className="bg-white/5 text-[10px] font-black uppercase text-slate-500">
+                                <thead className="bg-white/5 text-[10px] text-slate-500 font-black">
                                     <tr>
-                                        <th className="px-8 py-5">المحل / HWID</th>
-                                        <th className="px-8 py-5 text-center">الرسائل الخاصة</th>
-                                        <th className="px-8 py-5 text-center">الحالة</th>
-                                        <th className="px-8 py-5 text-end">إجراء</th>
+                                        <th className="px-6 py-4">المحل</th>
+                                        <th className="px-6 py-4">HWID</th>
+                                        <th className="px-6 py-4 text-center">الحالة</th>
+                                        <th className="px-6 py-4 text-end">تحكم</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-white/5 custom-scroll">
+                                <tbody className="divide-y divide-white/5">
                                     {Object.entries(stores).map(([hwid, data]) => (
-                                        <tr key={hwid} className="hover:bg-white/[0.02]">
-                                            <td className="px-8 py-5">
-                                                <div className="font-black text-white">{data.name}</div>
-                                                <div className="text-[10px] font-mono text-blue-500">{hwid}</div>
-                                            </td>
-                                            <td className="px-8 py-5 text-center">
-                                                <input 
-                                                    type="text" 
-                                                    placeholder="تنبيه خاص..." 
-                                                    className="p-2 rounded-lg text-[10px] w-40 text-center" 
-                                                    value={data.warning || ''} 
-                                                    onChange={e => {
-                                                        const updated = {...stores};
-                                                        updated[hwid].warning = e.target.value;
-                                                        save(updated);
-                                                    }}
-                                                />
-                                            </td>
-                                            <td className="px-8 py-5 text-center">
-                                                <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase ${data.status === 'ACTIVE' ? 'text-green-500 bg-green-500/10' : 'text-red-500 bg-red-500/10'}`}>
+                                        <tr key={hwid} className="hover:bg-white/[0.01]">
+                                            <td className="px-6 py-5 font-black text-white text-sm">{data.name}</td>
+                                            <td className="px-6 py-5 font-mono text-[10px] text-blue-500">{hwid}</td>
+                                            <td className="px-6 py-5 text-center">
+                                                <span className={`text-[9px] font-black px-2 py-1 rounded-md ${data.status === 'ACTIVE' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
                                                     {data.status === 'ACTIVE' ? 'نشط' : 'محظور'}
                                                 </span>
                                             </td>
-                                            <td className="px-8 py-5 text-end">
-                                                <button onClick={() => toggleStatus(hwid)} className={`px-5 py-2 rounded-xl text-[10px] font-black transition-all ${data.status === 'ACTIVE' ? 'bg-red-600 hover:bg-red-500' : 'bg-green-600 hover:bg-green-500'}`}>
-                                                    {data.status === 'ACTIVE' ? 'قفل الخدمة' : 'تفعيل'}
-                                                </button>
+                                            <td className="px-6 py-5 text-end">
+                                                <button onClick={() => {
+                                                    const updated = {...stores};
+                                                    updated[hwid].status = updated[hwid].status === 'ACTIVE' ? 'BLOCKED' : 'ACTIVE';
+                                                    save(updated);
+                                                }} className="text-[10px] bg-white/5 px-3 py-1 rounded hover:bg-white/10 transition-all">تغيير</button>
                                             </td>
                                         </tr>
                                     ))}
@@ -142,34 +125,38 @@
                             </table>
                         </div>
                     ) : (
-                        <div className="glass p-10 rounded-[2.5rem] neon-green space-y-6 max-w-2xl">
-                            <h2 className="text-xl font-black text-white">إعدادات التحديث العام</h2>
-                            <div className="grid grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase">إصدار البرنامج الحالي</label>
-                                    <input type="text" className="w-full p-4 rounded-2xl" value={updateConfig.version} onChange={e => save(null, {...updateConfig, version: e.target.value})} />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase">رابط التحميل الجديد</label>
-                                    <input type="text" className="w-full p-4 rounded-2xl" value={updateConfig.url} onChange={e => save(null, {...updateConfig, url: e.target.value})} />
-                                </div>
+                        <div className="glass p-8 rounded-3xl space-y-6 max-w-lg mx-auto">
+                            <div className="space-y-2">
+                                <label className="text-[10px] text-slate-500 font-black">رقم الإصدار</label>
+                                <input type="text" className="w-full p-4 rounded-xl text-sm" value={updateConfig.version} onChange={e => save(null, {...updateConfig, version: e.target.value})} />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-500 uppercase">رسالة إدارية (Global Warning)</label>
-                                <input type="text" className="w-full p-4 rounded-2xl border-amber-500/30 text-amber-500" value={updateConfig.globalWarning} onChange={e => save(null, {...updateConfig, globalWarning: e.target.value})} />
+                                <label className="text-[10px] text-slate-500 font-black">رابط التحديث المباشر</label>
+                                <input type="text" className="w-full p-4 rounded-xl text-sm" value={updateConfig.url} onChange={e => save(null, {...updateConfig, url: e.target.value})} />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] text-slate-500 font-black">رسالة إجبارية تظهر للجميع</label>
+                                <input type="text" className="w-full p-4 rounded-xl text-sm text-amber-500" value={updateConfig.globalWarning} onChange={e => save(null, {...updateConfig, globalWarning: e.target.value})} />
                             </div>
                         </div>
                     )}
 
                     {isAddOpen && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4">
-                            <div className="glass p-10 rounded-[3rem] w-full max-w-md shadow-2xl neon-blue text-right">
-                                <h2 className="text-2xl font-black mb-6 text-white">تسجيل متجر</h2>
-                                <form onSubmit={addStore} className="space-y-4">
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-4">
+                            <div className="glass p-10 rounded-[2.5rem] w-full max-w-md neon-blue">
+                                <h2 className="text-xl font-black mb-6 text-white text-center">إضافة مشترك SaaS جديد</h2>
+                                <form onSubmit={(e) => {
+                                    e.preventDefault();
+                                    const updated = { ...stores };
+                                    updated[newStore.hwid.toUpperCase()] = { name: newStore.name, status: 'ACTIVE', warning: '' };
+                                    save(updated);
+                                    setIsAddOpen(false);
+                                    setNewStore({hwid:'', name:''});
+                                }} className="space-y-4">
                                     <input type="text" placeholder="Hardware ID" required className="w-full p-4 rounded-xl" value={newStore.hwid} onChange={e => setNewStore({...newStore, hwid: e.target.value})} />
-                                    <input type="text" placeholder="اسم المحل" required className="w-full p-4 rounded-xl" value={newStore.name} onChange={e => setNewStore({...newStore, name: e.target.value})} />
-                                    <button type="submit" className="w-full py-4 bg-blue-600 rounded-xl font-black text-white shadow-lg">إضافة للسيرفر</button>
-                                    <button type="button" onClick={() => setIsAddOpen(false)} className="w-full text-slate-500 font-bold mt-2 text-center">إلغاء</button>
+                                    <input type="text" placeholder="اسم المحل / العميل" required className="w-full p-4 rounded-xl" value={newStore.name} onChange={e => setNewStore({...newStore, name: e.target.value})} />
+                                    <button type="submit" className="w-full py-4 bg-blue-600 rounded-xl font-black text-white">تفعيل الخدمة فوراً</button>
+                                    <button type="button" onClick={() => setIsAddOpen(false)} className="w-full text-slate-600 text-xs font-bold mt-2">إلغاء</button>
                                 </form>
                             </div>
                         </div>
