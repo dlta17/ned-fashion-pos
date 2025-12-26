@@ -1,0 +1,37 @@
+
+{
+  "name": "ned-fashion-pos",
+  "private": true,
+  "version": "1.0.1",
+  "main": "electron/main.js",
+  "description": "Fashion POS System by NED AI LABS for dlta17",
+  "author": "dlta17",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "electron:dev": "concurrently \"vite\" \"electron .\"",
+    "dist": "vite build && electron-builder"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.22.0",
+    "recharts": "^2.12.0",
+    "@google/genai": "*",
+    "lucide-react": "^0.344.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.56",
+    "@types/react-dom": "^18.2.19",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.18",
+    "concurrently": "^8.2.2",
+    "electron": "^29.1.0",
+    "electron-builder": "^24.13.3",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.2.2",
+    "vite": "^5.1.4"
+  }
+}

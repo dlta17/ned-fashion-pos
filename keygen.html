@@ -1,0 +1,153 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NED POS PRO - Key Generator</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1a1a1a;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: #2d2d2d;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            width: 400px;
+            text-align: center;
+            border: 1px solid #444;
+        }
+        h1 { margin-bottom: 1.5rem; color: #4ade80; font-size: 1.5rem; text-transform: uppercase; letter-spacing: 2px; }
+        .input-group { margin-bottom: 1.5rem; text-align: left; }
+        label { display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #aaa; }
+        input {
+            width: 100%;
+            padding: 10px;
+            background-color: #3d3d3d;
+            border: 1px solid #555;
+            color: #fff;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 1.1rem;
+            box-sizing: border-box;
+            text-transform: uppercase;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #4ade80;
+            color: #000;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.3s;
+        }
+        button:hover { background-color: #22c55e; }
+        .result {
+            margin-top: 2rem;
+            padding: 1rem;
+            background-color: #000;
+            border: 1px solid #4ade80;
+            border-radius: 5px;
+            display: none;
+        }
+        .result code {
+            font-size: 1.2rem;
+            color: #4ade80;
+            letter-spacing: 1px;
+            display: block;
+            margin-bottom: 10px;
+        }
+        .copy-btn {
+            background-color: #333;
+            color: #fff;
+            font-size: 0.8rem;
+            padding: 5px 10px;
+        }
+        .footer { margin-top: 20px; font-size: 0.7rem; color: #555; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Admin KeyGen</h1>
+    
+    <div class="input-group">
+        <label for="hwId">Customer Hardware ID:</label>
+        <input type="text" id="hwId" placeholder="e.g. HW-A1B2C3D4" autocomplete="off">
+    </div>
+
+    <button onclick="generateKey()">GENERATE LICENSE</button>
+
+    <div id="resultArea" class="result">
+        <label>Activation Key:</label>
+        <code id="licenseKey"></code>
+        <button class="copy-btn" onclick="copyToClipboard()">Copy Key</button>
+    </div>
+
+    <div class="footer">
+        NED AI LABS PROTECTION SYSTEM
+    </div>
+</div>
+
+<script>
+    // MUST MATCH THE SECRET IN THE APP CODE
+    const MASTER_SECRET = "NED-AI-LABS-SECRET-2025-POS-PRO";
+
+    function generateKey() {
+        const hwIdInput = document.getElementById('hwId').value.trim().toUpperCase();
+        
+        if (!hwIdInput.startsWith('HW-') || hwIdInput.length < 5) {
+            alert("Please enter a valid Hardware ID (starts with HW-)");
+            return;
+        }
+
+        const key = calculateLicense(hwIdInput);
+        
+        document.getElementById('licenseKey').textContent = key;
+        document.getElementById('resultArea').style.display = 'block';
+    }
+
+    function calculateLicense(hardwareId) {
+        // 1. Combine HW ID + Secret
+        const source = hardwareId + MASTER_SECRET;
+        
+        // 2. Generate pseudo-hash (Same algo as App)
+        let hash = 0;
+        for (let i = 0; i < source.length; i++) {
+            const char = source.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; 
+        }
+        
+        // 3. Format
+        const rawStr = Math.abs(hash).toString(16).toUpperCase().padEnd(16, 'X');
+        
+        const part1 = rawStr.substring(0, 4);
+        const part2 = rawStr.substring(4, 8);
+        const part3 = rawStr.substring(8, 12);
+        const part4 = rawStr.substring(12, 16);
+        
+        return `${part1}-${part2}-${part3}-${part4}`;
+    }
+
+    function copyToClipboard() {
+        const key = document.getElementById('licenseKey').textContent;
+        navigator.clipboard.writeText(key).then(() => {
+            alert("Copied to clipboard!");
+        });
+    }
+</script>
+
+</body>
+</html>

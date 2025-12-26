@@ -1,0 +1,7 @@
+{
+  "name": "NED FASHION POS PRO",
+  "description": "A responsive, Local-First web and desktop interface for the NED POS PRO system (Fashion Edition). Capable of running offline as a standalone Electron application or on a local server.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

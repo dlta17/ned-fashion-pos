@@ -1,0 +1,198 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NED MASTER CLOUD - مركز التحكم</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client"
+      }
+    }
+    </script>
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #030303; color: #f8fafc; }
+        .glass { background: rgba(15, 15, 15, 0.7); border: 1px solid rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); }
+        .neon-blue { box-shadow: 0 0 20px rgba(37, 99, 235, 0.15); border: 1px solid rgba(37, 99, 235, 0.3); }
+        .neon-green { box-shadow: 0 0 20px rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.3); }
+        input, select, textarea { background: #111 !important; border: 1px solid #333 !important; color: white !important; }
+        .custom-scroll::-webkit-scrollbar { width: 5px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+    </style>
+</head>
+<body class="p-4 md:p-10">
+    <div id="master-root"></div>
+
+    <script type="module">
+        import React, { useState, useEffect } from 'react';
+        import ReactDOM from 'react-dom/client';
+        
+        const MASTER_DB = 'ned_cloud_master_v3';
+
+        const MasterApp = () => {
+            const [stores, setStores] = useState({});
+            const [updateConfig, setUpdateConfig] = useState({ version: '1.0.1', url: '', description: '', globalWarning: '' });
+            const [activeTab, setActiveTab] = useState('stores');
+            const [isAddOpen, setIsAddOpen] = useState(false);
+            const [newStore, setNewStore] = useState({ hwid: '', name: '' });
+
+            useEffect(() => {
+                const data = localStorage.getItem(MASTER_DB);
+                if (data) {
+                    const parsed = JSON.parse(data);
+                    setStores(parsed.stores || {});
+                    setUpdateConfig(parsed.update || updateConfig);
+                }
+            }, []);
+
+            const save = (newStores, newUpdate) => {
+                const fullData = { stores: newStores || stores, update: newUpdate || updateConfig };
+                setStores(fullData.stores);
+                setUpdateConfig(fullData.update);
+                localStorage.setItem(MASTER_DB, JSON.stringify(fullData));
+            };
+
+            const handleExport = () => {
+                const blob = new Blob([JSON.stringify({ stores, update: updateConfig }, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'ned_cloud_server.json';
+                a.click();
+                alert("تم التصدير! ارفع هذا الملف على GitHub وانسخ رابط الـ Raw وضعه في إعدادات العملاء.");
+            };
+
+            const toggleStatus = (hwid) => {
+                const updated = { ...stores };
+                updated[hwid].status = updated[hwid].status === 'ACTIVE' ? 'BLOCKED' : 'ACTIVE';
+                save(updated);
+            };
+
+            const addStore = (e) => {
+                e.preventDefault();
+                if(!newStore.hwid) return;
+                const updated = { ...stores };
+                updated[newStore.hwid.toUpperCase()] = { name: newStore.name, status: 'ACTIVE', warning: '' };
+                save(updated);
+                setIsAddOpen(false);
+                setNewStore({hwid:'', name:''});
+            };
+
+            return (
+                <div className="max-w-5xl mx-auto space-y-8">
+                    <header className="flex flex-col md:flex-row justify-between items-center gap-6 pb-8 border-b border-white/5">
+                        <div>
+                            <h1 className="text-4xl font-black text-white tracking-tighter">NED MASTER <span className="text-blue-500">CLOUD</span></h1>
+                            <p className="text-slate-500 font-bold mt-1">نظام الإدارة المركزية والتحكم في الإصدارات</p>
+                        </div>
+                        <div className="flex gap-3">
+                            <button onClick={handleExport} className="bg-green-600 px-8 py-3 rounded-2xl font-black text-xs hover:bg-green-500 shadow-lg shadow-green-900/20">تصدير ملف السحاب</button>
+                            <button onClick={() => setIsAddOpen(true)} className="bg-blue-600 px-8 py-3 rounded-2xl font-black text-xs hover:bg-blue-500 shadow-lg shadow-blue-900/20">+ تسجيل متجر جديد</button>
+                        </div>
+                    </header>
+
+                    <div className="flex gap-2 p-1 bg-white/5 rounded-2xl w-fit">
+                        <button onClick={() => setActiveTab('stores')} className={`px-6 py-2 rounded-xl text-xs font-black transition-all ${activeTab === 'stores' ? 'bg-blue-600 text-white' : 'text-slate-500'}`}>المتاجر المشتركة</button>
+                        <button onClick={() => setActiveTab('updates')} className={`px-6 py-2 rounded-xl text-xs font-black transition-all ${activeTab === 'updates' ? 'bg-blue-600 text-white' : 'text-slate-500'}`}>تحديثات البرنامج</button>
+                    </div>
+
+                    {activeTab === 'stores' ? (
+                        <div className="glass rounded-[2.5rem] overflow-hidden neon-blue">
+                            <table className="w-full text-right">
+                                <thead className="bg-white/5 text-[10px] font-black uppercase text-slate-500">
+                                    <tr>
+                                        <th className="px-8 py-5">المحل / HWID</th>
+                                        <th className="px-8 py-5 text-center">الرسائل الخاصة</th>
+                                        <th className="px-8 py-5 text-center">الحالة</th>
+                                        <th className="px-8 py-5 text-end">إجراء</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/5 custom-scroll">
+                                    {Object.entries(stores).map(([hwid, data]) => (
+                                        <tr key={hwid} className="hover:bg-white/[0.02]">
+                                            <td className="px-8 py-5">
+                                                <div className="font-black text-white">{data.name}</div>
+                                                <div className="text-[10px] font-mono text-blue-500">{hwid}</div>
+                                            </td>
+                                            <td className="px-8 py-5 text-center">
+                                                <input 
+                                                    type="text" 
+                                                    placeholder="تنبيه خاص..." 
+                                                    className="p-2 rounded-lg text-[10px] w-40 text-center" 
+                                                    value={data.warning || ''} 
+                                                    onChange={e => {
+                                                        const updated = {...stores};
+                                                        updated[hwid].warning = e.target.value;
+                                                        save(updated);
+                                                    }}
+                                                />
+                                            </td>
+                                            <td className="px-8 py-5 text-center">
+                                                <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase ${data.status === 'ACTIVE' ? 'text-green-500 bg-green-500/10' : 'text-red-500 bg-red-500/10'}`}>
+                                                    {data.status === 'ACTIVE' ? 'نشط' : 'محظور'}
+                                                </span>
+                                            </td>
+                                            <td className="px-8 py-5 text-end">
+                                                <button onClick={() => toggleStatus(hwid)} className={`px-5 py-2 rounded-xl text-[10px] font-black transition-all ${data.status === 'ACTIVE' ? 'bg-red-600 hover:bg-red-500' : 'bg-green-600 hover:bg-green-500'}`}>
+                                                    {data.status === 'ACTIVE' ? 'قفل الخدمة' : 'تفعيل'}
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {Object.keys(stores).length === 0 && (
+                                        <tr><td colSpan="4" className="p-20 text-center text-slate-600 font-black italic">لا يوجد متاجر مسجلة</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    ) : (
+                        <div className="glass p-10 rounded-[2.5rem] neon-green space-y-6 max-w-2xl">
+                            <h2 className="text-xl font-black text-white">إعدادات التحديث العام</h2>
+                            <div className="grid grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-slate-500 uppercase">إصدار البرنامج الحالي</label>
+                                    <input type="text" className="w-full p-4 rounded-2xl" value={updateConfig.version} onChange={e => save(null, {...updateConfig, version: e.target.value})} />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-slate-500 uppercase">رابط التحميل الجديد</label>
+                                    <input type="text" className="w-full p-4 rounded-2xl" value={updateConfig.url} onChange={e => save(null, {...updateConfig, url: e.target.value})} />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-slate-500 uppercase">وصف التحديث (ما الجديد؟)</label>
+                                <textarea className="w-full p-4 rounded-2xl h-24" value={updateConfig.description} onChange={e => save(null, {...updateConfig, description: e.target.value})}></textarea>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-slate-500 uppercase">رسالة إدارية لجميع المتاجر (Global Warning)</label>
+                                <input type="text" className="w-full p-4 rounded-2xl border-amber-500/30 text-amber-500" value={updateConfig.globalWarning} onChange={e => save(null, {...updateConfig, globalWarning: e.target.value})} />
+                            </div>
+                        </div>
+                    )}
+
+                    {isAddOpen && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4">
+                            <div className="glass p-10 rounded-[3rem] w-full max-w-md shadow-2xl neon-blue">
+                                <h2 className="text-2xl font-black mb-6 text-white">تسجيل متجر</h2>
+                                <form onSubmit={addStore} className="space-y-4">
+                                    <input type="text" placeholder="Hardware ID" required className="w-full p-4 rounded-xl" value={newStore.hwid} onChange={e => setNewStore({...newStore, hwid: e.target.value})} />
+                                    <input type="text" placeholder="اسم المحل" required className="w-full p-4 rounded-xl" value={newStore.name} onChange={e => setNewStore({...newStore, name: e.target.value})} />
+                                    <button type="submit" className="w-full py-4 bg-blue-600 rounded-xl font-black text-white shadow-lg">إضافة للسيرفر</button>
+                                    <button type="button" onClick={() => setIsAddOpen(false)} className="w-full text-slate-500 font-bold mt-2">إلغاء</button>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('master-root'));
+        root.render(<MasterApp />);
+    </script>
+</body>
+</html>
