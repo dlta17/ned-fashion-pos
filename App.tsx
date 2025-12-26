@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState, useCallback } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NotificationProvider } from './contexts/NotificationContext';
@@ -27,14 +27,6 @@ const MainLayout: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
       <Header />
-      {license.warningMessage && (
-          <div className="bg-amber-600 text-white p-4 text-center font-black animate-pulse flex justify-between items-center px-10 border-b border-amber-700 shadow-lg relative z-[60]">
-              <div className="flex items-center gap-3">
-                  <span className="text-sm">تنبيه من الإدارة: {license.warningMessage}</span>
-              </div>
-              <button onClick={clearLocalWarning} className="bg-black/20 hover:bg-black/40 px-3 py-1 rounded-lg text-xs">إخفاء</button>
-          </div>
-      )}
       <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <ErrorBoundary>
             <Suspense fallback={<LoadingSpinner />}>
@@ -59,56 +51,78 @@ const MainLayout: React.FC = () => {
 
 const AppRoutes: React.FC = () => {
     const { isAuthenticated, loading: authLoading } = useAuth();
-    const { license, activateLicense } = useStore(); 
-    const [cloudLoading, setCloudLoading] = useState(true);
-    const [isBlocked, setIsBlocked] = useState(false);
+    const { activateLicense } = useStore(); 
+    const [status, setStatus] = useState<'LOADING' | 'ACTIVE' | 'BLOCKED' | 'OFFLINE'>('LOADING');
+
+    const checkSaaS = useCallback(async (isBackground = false) => {
+        try {
+            const response = await fetch(`${CLOUD_URL}?t=${new Date().getTime()}`);
+            const data = await response.json();
+            const decrypted = JSON.parse(decodeURIComponent(escape(atob(data.cloud_payload))));
+            const myHwid = "HW-9ED8D93E"; 
+            const cloudStore = decrypted.stores[myHwid];
+
+            if (cloudStore && cloudStore.status === 'ACTIVE') {
+                const licenseData = {
+                    isActivated: true,
+                    remoteStatus: 'ACTIVE',
+                    hardwareId: myHwid,
+                    expiryDate: '2030-01-01'
+                };
+                localStorage.setItem('ned_pos_license', JSON.stringify(licenseData));
+                if (!isBackground && activateLicense) activateLicense("FORCE_SaaS");
+                setStatus('ACTIVE');
+            } else {
+                // لو الحالة اتغيرت لـ BLOCKED نمسح التفعيل المحلي فوراً
+                localStorage.removeItem('ned_pos_license');
+                setStatus('BLOCKED');
+            }
+        } catch (error) {
+            if (!isBackground) {
+                const local = localStorage.getItem('ned_pos_license');
+                if (local && JSON.parse(local).isActivated) {
+                    setStatus('ACTIVE');
+                } else {
+                    setStatus('OFFLINE');
+                }
+            }
+        }
+    }, [activateLicense]);
 
     useEffect(() => {
-        const syncSaaS = async () => {
-            try {
-                const response = await fetch(`${CLOUD_URL}?t=${new Date().getTime()}`);
-                const data = await response.json();
-                const decrypted = JSON.parse(decodeURIComponent(escape(atob(data.cloud_payload))));
-                const myHwid = "HW-9ED8D93E"; 
-                const cloudStore = decrypted.stores[myHwid];
+        // فحص عند التشغيل
+        checkSaaS();
 
-                if (cloudStore) {
-                    if (cloudStore.status === 'BLOCKED') {
-                        setIsBlocked(true);
-                    } else if (cloudStore.status === 'ACTIVE') {
-                        // --- حقن الحالة مباشرة في الذاكرة ---
-                        const activeData = {
-                            isActivated: true,
-                            remoteStatus: 'ACTIVE',
-                            hardwareId: myHwid,
-                            expiryDate: '2030-01-01'
-                        };
-                        localStorage.setItem('ned_pos_license', JSON.stringify(activeData));
-                        
-                        // تحديث الحالة في الواجهة
-                        if (activateLicense) activateLicense("FORCE_SaaS_ACTIVE");
-                        
-                        setIsBlocked(false);
-                    }
-                }
-            } catch (error) {
-                console.error("SaaS Connection Failed");
-            } finally {
-                setCloudLoading(false);
-            }
-        };
-        syncSaaS();
-    }, []);
+        // فحص دوري كل 60 ثانية (المراقب اللحظي)
+        const interval = setInterval(() => {
+            checkSaaS(true);
+        }, 60000); 
 
-    if (authLoading || cloudLoading) return <LoadingSpinner />;
+        return () => clearInterval(interval);
+    }, [checkSaaS]);
 
-    // لو السحاب باعت BLOCKED اظهر شاشة الحظر فوراً
-    if (isBlocked) {
+    if (authLoading || status === 'LOADING') return <LoadingSpinner />;
+
+    if (status === 'BLOCKED') {
         return (
-            <div className="h-screen bg-black flex items-center justify-center p-6 text-center text-white">
-                <div className="bg-red-900/20 p-12 rounded-3xl border border-red-500 shadow-2xl">
-                    <h1 className="text-5xl font-black mb-6">النظام محظور!</h1>
-                    <p className="text-xl mb-8">تم إيقاف الخدمة عن هذا الجهاز من قبل المطور نضال سلامة.</p>
+            <div className="h-screen bg-slate-950 flex items-center justify-center text-center p-6">
+                <div className="max-w-md w-full bg-white p-10 rounded-[2.5rem] shadow-[0_0_50px_rgba(239,68,68,0.3)] border-b-8 border-red-600">
+                    <div className="w-20 h-20 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl">🛑</div>
+                    <h1 className="text-3xl font-black text-slate-900 mb-4">الوصول محظور!</h1>
+                    <p className="text-slate-600 font-bold mb-8">عذراً، تم إيقاف صلاحية الوصول لهذا الجهاز. يرجى التواصل مع نضال سلامة للتفعيل.</p>
+                    <div className="bg-slate-100 p-3 rounded-2xl font-mono text-xs text-slate-400">ID: HW-9ED8D93E</div>
+                </div>
+            </div>
+        );
+    }
+
+    if (status === 'OFFLINE') {
+        return (
+            <div className="h-screen bg-slate-50 flex items-center justify-center text-center p-6">
+                <div className="max-w-sm">
+                    <h1 className="text-2xl font-black text-slate-800 mb-2">لا يوجد اتصال</h1>
+                    <p className="text-slate-500 mb-6 font-bold">يجب الاتصال بالإنترنت للتحقق من الرخصة لأول مرة.</p>
+                    <button onClick={() => window.location.reload()} className="bg-black text-white px-8 py-3 rounded-2xl font-bold hover:bg-slate-800 transition-all">إعادة المحاولة</button>
                 </div>
             </div>
         );
