@@ -61,7 +61,8 @@ const MainLayout: React.FC = () => {
 
 const AppRoutes: React.FC = () => {
     const { isAuthenticated, loading: authLoading } = useAuth();
-    const { license } = useStore();
+    // أضفنا activateLicense هنا عشان نحدث الحالة برمجياً
+    const { license, activateLicense } = useStore(); 
     const [cloudLoading, setCloudLoading] = useState(true);
     const [isBlocked, setIsBlocked] = useState(false);
 
@@ -73,8 +74,16 @@ const AppRoutes: React.FC = () => {
                 const decrypted = JSON.parse(decodeURIComponent(escape(atob(data.cloud_payload))));
                 const myHwid = "HW-9ED8D93E"; 
                 const cloudStore = decrypted.stores[myHwid];
-                if (cloudStore && cloudStore.status === 'BLOCKED') {
-                    setIsBlocked(true);
+
+                if (cloudStore) {
+                    if (cloudStore.status === 'BLOCKED') {
+                        setIsBlocked(true);
+                    } else if (cloudStore.status === 'ACTIVE') {
+                        // دي الخطوة اللي بتشيل "فترة تجريبية" وتخليها مفعلة رسمياً
+                        // بنمرر كود "SaaS_ACTIVE" عشان السيستم يعرف إن التفعيل جاي من السحاب
+                        activateLicense("SaaS_ACTIVE"); 
+                        console.log("✅ SaaS Cloud Activated: " + cloudStore.name);
+                    }
                 }
             } catch (error) {
                 console.error("⚠️ SaaS Connection Error");
@@ -83,7 +92,7 @@ const AppRoutes: React.FC = () => {
             }
         };
         syncSaaS();
-    }, []);
+    }, [activateLicense]);
 
     if (authLoading || cloudLoading) return <LoadingSpinner />;
 
