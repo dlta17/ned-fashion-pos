@@ -61,7 +61,6 @@ const MainLayout: React.FC = () => {
 
 const AppRoutes: React.FC = () => {
     const { isAuthenticated, loading: authLoading } = useAuth();
-    // أضفنا activateLicense هنا عشان نحدث الحالة برمجياً
     const { license, activateLicense } = useStore(); 
     const [cloudLoading, setCloudLoading] = useState(true);
     const [isBlocked, setIsBlocked] = useState(false);
@@ -69,7 +68,8 @@ const AppRoutes: React.FC = () => {
     useEffect(() => {
         const syncSaaS = async () => {
             try {
-                const response = await fetch(CLOUD_URL);
+                // إضافة timestamp لمنع الـ Cache
+                const response = await fetch(`${CLOUD_URL}?t=${new Date().getTime()}`);
                 const data = await response.json();
                 const decrypted = JSON.parse(decodeURIComponent(escape(atob(data.cloud_payload))));
                 const myHwid = "HW-9ED8D93E"; 
@@ -79,10 +79,22 @@ const AppRoutes: React.FC = () => {
                     if (cloudStore.status === 'BLOCKED') {
                         setIsBlocked(true);
                     } else if (cloudStore.status === 'ACTIVE') {
-                        // دي الخطوة اللي بتشيل "فترة تجريبية" وتخليها مفعلة رسمياً
-                        // بنمرر كود "SaaS_ACTIVE" عشان السيستم يعرف إن التفعيل جاي من السحاب
-                        activateLicense("SaaS_ACTIVE"); 
-                        console.log("✅ SaaS Cloud Activated: " + cloudStore.name);
+                        // --- التعديل الجوهري هنا ---
+                        // 1. تحديث الـ LocalStorage يدوياً لضمان استقرار الحالة
+                        const forcedLicense = {
+                            ...license,
+                            isActivated: true,
+                            remoteStatus: 'ACTIVE',
+                            trialDaysLeft: 999,
+                            hardwareId: myHwid
+                        };
+                        localStorage.setItem('ned_pos_license', JSON.stringify(forcedLicense));
+
+                        // 2. تفعيل النسخة برمجياً
+                        if (typeof activateLicense === 'function') {
+                            activateLicense("SaaS_FORCE_ACTIVE"); 
+                        }
+                        console.log("✅ SaaS Status: ACTIVE");
                     }
                 }
             } catch (error) {
@@ -100,8 +112,9 @@ const AppRoutes: React.FC = () => {
         return (
             <div className="h-screen bg-slate-950 flex items-center justify-center p-6 text-center">
                 <div className="bg-white p-12 rounded-[3rem] shadow-2xl max-w-xl border-t-[12px] border-red-600">
-                    <h1 className="text-4xl font-black text-slate-800 mb-6">عذراً، النظام متوقف!</h1>
-                    <p className="text-slate-500 font-bold text-lg">برجاء مراجعة نضال سلامة للتفعيل.</p>
+                    <h1 className="text-4xl font-black text-slate-800 mb-6">النظام متوقف!</h1>
+                    <p className="text-slate-500 font-bold text-lg mb-4">تم تعليق الخدمة من السيرفر المركزي.</p>
+                    <p className="text-slate-400 font-bold">يرجى مراجعة المطور نضال سلامة.</p>
                 </div>
             </div>
         );
