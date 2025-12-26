@@ -24,6 +24,7 @@ const CLOUD_URL = "https://raw.githubusercontent.com/dlta17/ned-fashion-pos/main
 
 const MainLayout: React.FC = () => {
   const { license, clearLocalWarning } = useStore();
+
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
       <Header />
@@ -35,19 +36,21 @@ const MainLayout: React.FC = () => {
               <button onClick={clearLocalWarning} className="bg-black/20 hover:bg-black/40 px-3 py-1 rounded-lg text-xs">إخفاء</button>
           </div>
       )}
-      <main className="max-w-7xl mx-auto py-8 px-4">
+
+      <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <ErrorBoundary>
             <Suspense fallback={<LoadingSpinner />}>
                 <Routes>
                     <Route path="/" element={<Navigate to="/dashboard" replace />} />
                     <Route path="/dashboard" element={<DashboardPage />} />
-                    <Route path="/pos" element={<POSPage />} />
-                    <Route path="/inventory" element={<InventoryPage />} />
-                    <Route path="/customers" element={<CustomersPage />} />
-                    <Route path="/repairs" element={<RepairsPage />} />
-                    <Route path="/reports" element={<ReportsPage />} />
-                    <Route path="/suppliers" element={<SuppliersPage />} />
-                    <Route path="/settings" element={<SettingsPage />} />
+                    <Route path="/pos" element={<ProtectedRoute allowedRoles={[Role.Designer, Role.Owner, Role.Admin, Role.Sales]}><POSPage /></ProtectedRoute>} />
+                    <Route path="/inventory" element={<ProtectedRoute allowedRoles={[Role.Designer, Role.Owner, Role.Admin, Role.Sales]}><InventoryPage /></ProtectedRoute>} />
+                    <Route path="/customers" element={<ProtectedRoute allowedRoles={[Role.Designer, Role.Owner, Role.Admin, Role.Sales]}><CustomersPage /></ProtectedRoute>} />
+                    <Route path="/repairs" element={<ProtectedRoute allowedRoles={[Role.Designer, Role.Owner, Role.Admin, Role.Maintenance]}><RepairsPage /></ProtectedRoute>} />
+                    <Route path="/reports" element={<ProtectedRoute allowedRoles={[Role.Designer, Role.Owner, Role.Admin, Role.Sales]}><ReportsPage /></ProtectedRoute>} />
+                    <Route path="/suppliers" element={<ProtectedRoute allowedRoles={[Role.Designer, Role.Owner, Role.Admin]}><SuppliersPage /></ProtectedRoute>} />
+                    <Route path="/settings" element={<ProtectedRoute allowedRoles={[Role.Designer, Role.Owner, Role.Admin]}><SettingsPage /></ProtectedRoute>} />
+                    <Route path="*" element={<Navigate to="/dashboard" replace />} />
                 </Routes>
             </Suspense>
         </ErrorBoundary>
@@ -70,9 +73,11 @@ const AppRoutes: React.FC = () => {
                 const decrypted = JSON.parse(decodeURIComponent(escape(atob(data.cloud_payload))));
                 const myHwid = "HW-9ED8D93E"; 
                 const cloudStore = decrypted.stores[myHwid];
-                if (cloudStore && cloudStore.status === 'BLOCKED') setIsBlocked(true);
+                if (cloudStore && cloudStore.status === 'BLOCKED') {
+                    setIsBlocked(true);
+                }
             } catch (error) {
-                console.error("Cloud connection failed");
+                console.error("⚠️ SaaS Connection Error");
             } finally {
                 setCloudLoading(false);
             }
@@ -84,10 +89,10 @@ const AppRoutes: React.FC = () => {
 
     if (isBlocked || license.remoteStatus === 'BLOCKED') {
         return (
-            <div className="h-screen bg-slate-950 flex items-center justify-center p-6 text-center text-white">
-                <div className="bg-white p-12 rounded-[3rem] text-slate-800">
-                    <h1 className="text-4xl font-black mb-6">عذراً، النظام متوقف!</h1>
-                    <p className="font-bold">برجاء مراجعة نضال سلامة للتفعيل.</p>
+            <div className="h-screen bg-slate-950 flex items-center justify-center p-6 text-center">
+                <div className="bg-white p-12 rounded-[3rem] shadow-2xl max-w-xl border-t-[12px] border-red-600">
+                    <h1 className="text-4xl font-black text-slate-800 mb-6">عذراً، النظام متوقف!</h1>
+                    <p className="text-slate-500 font-bold text-lg">برجاء مراجعة نضال سلامة للتفعيل.</p>
                 </div>
             </div>
         );
